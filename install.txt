@@ -1,0 +1,1 @@
+gcc -o gfw.press src/cli.c  src/client.c src/encrypt.c -ansi -O3  -lssl -lcrypto -lpthread -Wall
