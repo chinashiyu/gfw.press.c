@@ -29,7 +29,7 @@ extern void _log(char *message);
 
 int main(void) {
 
-	_log("客户端开始运行......");
+	_log("GFW.Press客户端开始运行......");
 
 	if (load_config() != 0) {
 
