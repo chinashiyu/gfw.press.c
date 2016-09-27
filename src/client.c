@@ -15,7 +15,7 @@
  *
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *    
+ *
  **/
 
 #include <stdio.h>
@@ -61,19 +61,14 @@ static int SIZE_SIZE = 14;
 /**  IV字节长度，16 */
 static int IV_SIZE = 16;
 
-/** 节点地址 */
 static char * server_host;
 
-/** 节点端口 */
-static int server_port = 0;
+static int server_port;
 
-/** 代理端口 */
-static int listen_port = 0;
+static int listen_port;
 
-/** 连接密码 */
 static char * password;
 
-/** 加密KEY */
 static char * key;
 
 /** IO线程参数结构 */
@@ -84,19 +79,6 @@ struct IO {
 	int socket_server;
 
 };
-
-#if !defined(SO_NOSIGPIPE)
-#define SO_NOSIGPIPE MSG_NOSIGNAL
-#endif
-
-/** 客户端主线程 */
-static pthread_t thread_id_main;
-
-/** 监听端口socket */
-static int socket_client;
-
-/** 主线程运行状态：0，停止，1，运行 */
-static int main_thread_status = 0;
 
 /**
  * 获取当前时期时间
@@ -170,14 +152,12 @@ void *thread_io_agent(void *_io) {
 
 	struct IO io = *((struct IO*) _io);
 
-	while (main_thread_status == 1) {
+	while (1) {
 
 		char *buffer = malloc(BUFFER_SIZE_MIN + 1);
 
 		/** 接收浏览器数据 */
-		int recvl = recv(io.socket_agent, buffer, BUFFER_SIZE_MIN, 0);
-
-		/** printf("\nrecvl from agent: %d\n" , recvl); */
+		int recvl = recv(io.socket_agent, buffer, BUFFER_SIZE_MIN, MSG_NOSIGNAL);
 
 		if (recvl < 1) {
 
@@ -186,8 +166,6 @@ void *thread_io_agent(void *_io) {
 			break;
 
 		}
-
-		/** printf("\nrecvl from agent: %s\n" , buffer); */
 
 		buffer[recvl] = '\0';
 
@@ -202,9 +180,7 @@ void *thread_io_agent(void *_io) {
 		free(buffer);
 
 		/** 发送数据到服务器 */
-		int sendl = send(io.socket_server, out, _outl, 0);
-
-		/** printf("\nsend to server: %d\n" , sendl); */
+		int sendl = send(io.socket_server, out, _outl, MSG_NOSIGNAL);
 
 		free(out);
 
@@ -227,14 +203,12 @@ void *thread_io_server(void *_io) {
 
 	struct IO io = *((struct IO*) _io);
 
-	while (main_thread_status == 1) {
+	while (1) {
 
 		char *head = malloc(ENCRYPT_SIZE + 1);
 
 		/** 接收服务器头数据 */
-		int head_len = recv(io.socket_server, head, ENCRYPT_SIZE, 0);
-
-		/** printf("\nrecvl from server head: %d\n" , head_len); */
+		int head_len = recv(io.socket_server, head, ENCRYPT_SIZE, MSG_NOSIGNAL);
 
 		if (head_len != ENCRYPT_SIZE) {
 
@@ -257,8 +231,6 @@ void *thread_io_server(void *_io) {
 		}
 
 		head_out[SIZE_SIZE] = '\0';
-
-		/** printf("\nrecvl from server head: %s\n" , head_out); */
 
 		free(head);
 
@@ -291,19 +263,17 @@ void *thread_io_server(void *_io) {
 		for (; _size < size;) {
 
 			/** 接收服务器数据 */
-			int recvl = recv(io.socket_server, &in[_size], (size - _size), 0);
+			head_len = recv(io.socket_server, &in[_size], (size - _size), MSG_NOSIGNAL);
 
-			if (recvl < 1) {
+			if (head_len < 1) {
 
 				break;
 
 			}
 
-			_size += recvl;
+			_size += head_len;
 
 		}
-
-		/** printf("\nrecvl from server body: %d\n" , _size); */
 
 		if (_size != size) {
 
@@ -331,14 +301,10 @@ void *thread_io_server(void *_io) {
 
 		out[outl] = '\0';
 
-		/** printf("\nrecvl from server body: %d\n%s\n" , outl, out); */
-
 		free(in);
 
 		/** 转发数据到浏览器 */
-		int sendl = send(io.socket_agent, out, outl, 0);
-
-		/** printf("\nsend to agent: %d\n" , sendl); */
+		int sendl = send(io.socket_agent, out, outl, MSG_NOSIGNAL);
 
 		free(out);
 
@@ -368,11 +334,6 @@ void set_timeout(int socket) {
 	setsockopt(socket, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *) &tv, sizeof(struct timeval));
 
 	setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &tv, sizeof(struct timeval));
-
-	/** 忽略中止信号 */
-	int optVal = 1;
-
-	setsockopt(socket, SOL_SOCKET, SO_NOSIGPIPE, &optVal, sizeof(optVal));
 
 }
 
@@ -463,54 +424,23 @@ void *thread_client(void *_socket_agent) {
 
 }
 
-int check_config() {
-
-	if (server_host == NULL || strlen(server_host) < 7 || server_port == 0 || password == NULL || strlen(password) < 8 || listen_port == 0) {
-
-		_log("配置信息不完整");
-
-		return -1;
-
-	}
-
-	return 0;
-
-}
-
-/**
- *设置配置
- */
 int set_config(char *_server_host, char *_server_port, char *_password, char *_listen_port) {
 
-	if (_server_host == NULL || _server_port == NULL || _password == NULL || _listen_port == NULL || strlen(_server_host) < 7 || strlen(_server_port) < 2 || strlen(_listen_port) < 2 || strlen(_password) < 8) {
-
-		_log("配置信息不完整");
+	if (strlen(_server_host) < 7 || strlen(_server_port) < 2 || strlen(_listen_port) < 2 || strlen(_password) < 8) {
 
 		return -1;
 
 	}
 
-	server_host = malloc(128);
-
-	password = malloc(64);
-
-	key = malloc(25);
-
-	memcpy(server_host, _server_host, strlen(_server_host));
-
-	server_host[strlen(_server_host)] = '\0';
-
-	//server_host = _server_host;
+	server_host = _server_host;
 
 	server_port = atoi(_server_port);
 
 	listen_port = atoi(_listen_port);
 
-	memcpy(password, _password, strlen(_password));
+	password = _password;
 
-	password[strlen(_password)] = '\0';
-
-	//password = _password;
+	key = malloc(25);
 
 	get_password_key(password, key);
 
@@ -521,7 +451,7 @@ int set_config(char *_server_host, char *_server_port, char *_password, char *_l
 }
 
 /**
- * 从配置文件 client.json 初始化配置
+ * 初始化配置
  */
 int load_config() {
 
@@ -539,16 +469,6 @@ int load_config() {
 
 	if ((file = fopen("client.json", "r+")) == NULL) {
 
-		free(_server_host);
-
-		free(_server_port);
-
-		free(_password);
-
-		free(_listen_port);
-
-		free(text);
-
 		return -1;
 
 	}
@@ -564,16 +484,6 @@ int load_config() {
 	}
 
 	if (pos == 0) {
-
-		free(_server_host);
-
-		free(_server_port);
-
-		free(_password);
-
-		free(_listen_port);
-
-		free(text);
 
 		return -1;
 
@@ -603,14 +513,6 @@ int load_config() {
 
 	if (_pos == 0) {
 
-		free(_server_host);
-
-		free(_server_port);
-
-		free(_password);
-
-		free(_listen_port);
-
 		return -1;
 
 	}
@@ -619,17 +521,7 @@ int load_config() {
 
 	sscanf(_text, "ServerHost:%[^,],ServerPort:%[0-9],ProxyPort:%[0-9],Password:%[^,]", _server_host, _server_port, _listen_port, _password);
 
-	int r = set_config(_server_host, _server_port, _password, _listen_port);
-
-	free(_server_host);
-
-	free(_server_port);
-
-	free(_password);
-
-	free(_listen_port);
-
-	return r;
+	return set_config(_server_host, _server_port, _password, _listen_port);
 
 }
 
@@ -650,6 +542,9 @@ void print_config() {
 
 	_password[pl] = '\0';
 
+	/**
+	 printf("\n[%s] ServerHost：%s\n[%s] ServerPort：%d\n[%s] ProxyPort：%d\n[%s] Password：%s\n", _datetime, server_host, _datetime, server_port, _datetime, listen_port, _datetime, _password);
+	 */
 	printf("\n[%s] 节点地址：%s\n[%s] 节点端口：%d\n[%s] 代理端口：%d\n[%s] 连接密码：%s\n", _datetime, server_host, _datetime, server_port, _datetime, listen_port, _datetime, _password);
 
 	free(_datetime);
@@ -661,15 +556,17 @@ void print_config() {
  */
 void* main_thread() {
 
-	print_config();
+	if (load_config() == -1) {
 
-	if (check_config() == -1) {
+		_log("无法获取配置信息，已停止运行并退出");
 
 		pthread_exit(0);
 
 	}
 
-	socket_client = socket(AF_INET, SOCK_STREAM, 0);
+	print_config();
+
+	int socket_client = socket(AF_INET, SOCK_STREAM, 0);
 
 	if (socket_client == -1) {
 
@@ -678,10 +575,6 @@ void* main_thread() {
 		pthread_exit(0);
 
 	}
-
-	const int optVal = 1;
-
-	setsockopt(socket_client, SOL_SOCKET, SO_REUSEADDR, &optVal, sizeof(optVal));
 
 	struct sockaddr_in sockaddr_client;
 
@@ -701,7 +594,7 @@ void* main_thread() {
 
 		char message[128];
 
-		sprintf(message, "绑定端口%d失败，客户端主线程已停止运行并退出", listen_port);
+		sprintf(message, "绑定端口%d失败，已停止运行并退出", listen_port);
 
 		_log(message);
 
@@ -717,7 +610,7 @@ void* main_thread() {
 
 		char message[128];
 
-		sprintf(message, "监听端口%d失败，客户端主线程已停止运行并退出", listen_port);
+		sprintf(message, "监听端口%d失败，已停止运行并退出", listen_port);
 
 		_log(message);
 
@@ -725,7 +618,7 @@ void* main_thread() {
 
 	}
 
-	for (; main_thread_status == 1;) {
+	for (;;) {
 
 		struct sockaddr_in sockaddr_agent;
 
@@ -734,12 +627,6 @@ void* main_thread() {
 		int socket_agent = accept(socket_client, (struct sockaddr *) &sockaddr_agent, &sockaddr_size);
 
 		if (socket_agent == -1) {
-
-			if (main_thread_status == 0) {
-
-				pthread_exit(0);
-
-			}
 
 			_log("接收浏览器连接时发生错误");
 
@@ -753,39 +640,28 @@ void* main_thread() {
 
 	}
 
+	close(socket_client);
+
+	_log("GFW.Press客户端运行结束");
+
 	pthread_exit(0);
 
 }
 
-/**
- * 启动客户端主线程
- */
-int _start() {
-
-	_log("客户端主线程开始运行......");
-
-	main_thread_status = 1;
-
-	pthread_create(&thread_id_main, NULL, main_thread, NULL);
-
-	pthread_join(thread_id_main, NULL);
-
-	return 0;
-
-}
+pthread_t thread_id;
 
 /**
- * 停止客户端主线程
+ * 客户端主程序
  */
-int _stop() {
+int main(int argc, char *argv[]) {
 
-	main_thread_status = 0;
+	_log("GFW.Press客户端开始运行......");
 
-	close(socket_client);
+	pthread_create(&thread_id, NULL, main_thread, NULL);
 
-	pthread_cancel(thread_id_main);
+	pthread_join(thread_id, NULL);
 
-	_log("客户端主线程运行结束");
+	pthread_kill(thread_id, SIGINT);
 
 	return 0;
 

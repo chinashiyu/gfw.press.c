@@ -15,7 +15,7 @@
  *
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *    
+ *
  **/
 
 #include <openssl/evp.h>
@@ -268,8 +268,6 @@ int encrypt_net(char *key, char *in, int in_len, char *out) {
 		free(noise);
 
 		free(size);
-        
-        return -1;
 
 	}
 
