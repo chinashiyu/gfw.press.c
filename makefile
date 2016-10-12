@@ -21,11 +21,11 @@ DIRSRC = ./src
 SRCS = $(wildcard ${DIRSRC}/*.c)  
 LIB_OBJS = $(SRCS:%.c=%.o)
 
-CCFLAGS += -ansi -O3  -lssl -lcrypto -lpthread -Wall -g
+CFLAGS += -ansi -O3  -lssl -lcrypto -lpthread -Wall -g
 
 $(TARGET) : $(LIB_OBJS)
 	$(RM) $@;
-	$(CC) $^ -o $@ $(CCFLAGS)
+	$(CC) $^ -o $@ $(CFLAGS)
 
 #编译规则
 %.o : %.c
