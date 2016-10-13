@@ -89,7 +89,8 @@ void datetime(char *_datetime) {
 
 	struct tm *_tm = localtime(&_time);
 
-	sprintf(_datetime, "%02d-%02d-%02d %02d:%02d:%02d", _tm->tm_year + 1900, _tm->tm_mon + 1, _tm->tm_mday, _tm->tm_hour, _tm->tm_min, _tm->tm_sec);
+	sprintf(_datetime, "%02d-%02d-%02d %02d:%02d:%02d",
+		_tm->tm_year + 1900, _tm->tm_mon + 1, _tm->tm_mday, _tm->tm_hour, _tm->tm_min, _tm->tm_sec);
 
 }
 
@@ -519,7 +520,8 @@ int load_config() {
 
 	_text[_pos] = '\0';
 
-	sscanf(_text, "ServerHost:%[^,],ServerPort:%[0-9],ProxyPort:%[0-9],Password:%[^,]", _server_host, _server_port, _listen_port, _password);
+	sscanf(_text, "ServerHost:%[^,],ServerPort:%[0-9],ProxyPort:%[0-9],Password:%[^,]",
+		_server_host, _server_port, _listen_port, _password);
 
 	return set_config(_server_host, _server_port, _password, _listen_port);
 
@@ -543,9 +545,11 @@ void print_config() {
 	_password[pl] = '\0';
 
 	/**
-	 printf("\n[%s] ServerHost：%s\n[%s] ServerPort：%d\n[%s] ProxyPort：%d\n[%s] Password：%s\n", _datetime, server_host, _datetime, server_port, _datetime, listen_port, _datetime, _password);
+	 printf("\n[%s] ServerHost：%s\n[%s] ServerPort：%d\n[%s] ProxyPort：%d\n[%s] Password：%s\n", 
+	 	_datetime, server_host, _datetime, server_port, _datetime, listen_port, _datetime, _password);
 	 */
-	printf("\n[%s] 节点地址：%s\n[%s] 节点端口：%d\n[%s] 代理端口：%d\n[%s] 连接密码：%s\n", _datetime, server_host, _datetime, server_port, _datetime, listen_port, _datetime, _password);
+	printf("\n[%s] 节点地址：%s\n[%s] 节点端口：%d\n[%s] 代理端口：%d\n[%s] 连接密码：%s\n",
+		_datetime, server_host, _datetime, server_port, _datetime, listen_port, _datetime, _password);
 
 	free(_datetime);
 
