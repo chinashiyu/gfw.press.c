@@ -74,7 +74,7 @@ define Package/gfwpress/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/gfwpress $(1)/usr/bin/
 #	$(INSTALL_DIR) $(1)/etc
-#	#$(INSTALL_CONF) files/client.json $(1)/etc/gfwpress.json
+#	#$(INSTALL_CONF) files/client.json $(1)/var/etc/gfwpress.json
 endef
 
 $(eval $(call BuildPackage,gfwpress))
